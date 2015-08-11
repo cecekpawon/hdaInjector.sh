@@ -3,7 +3,7 @@
 
 # Initialize global variables
 
-## The script versoin
+## The script version
 gScriptVersion="0.1"
 
 ## The user ID
@@ -32,9 +32,7 @@ gKext="AppleHDAUnknown.kext"
 
 function _getAudioCodec()
 {
-
 	# Initialize variables
-	gKext="AppleHDA$gCodecShort.kext"
 	gCodecHex=$(ioreg -rxn IOHDACodecDevice | grep VendorID | awk '{ print $4 }' | sed 's/ffffffff//' | grep '0x10ec\|0x1106')
 	gCodecDec=$(echo $((16#$(echo $gCodecHex | sed 's/0x//'))))
 
@@ -54,6 +52,7 @@ function _getAudioCodec()
 	# Initialize more variables
 	gCodecShort=$(echo $gCodec | cut -d ' ' -f 2)
 	gCodecModel=$(echo $gCodecShort | tr -d '[:alpha:]')
+	gKext="AppleHDA$gCodecModel.kext"
 
 	# Print information about the codec
 	echo "$gCodec ($gCodecHex) / ($gCodecDec) detected."
@@ -64,7 +63,7 @@ function _downloadCodecFiles()
 	# Initialize variables
 	fileName="$gCodecShort.zip"
 	# Download the ZIP containing the codec XML/plist files
-	curl --output $fileName --progress-bar --location https://raw.githubusercontent.com/theracermaster/hdaInjector.sh/master/Codecs/$fileName
+	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Codecs/$fileName?raw=true
 	# Extract the codec XML/plist files
 	unzip "/tmp/$fileName" -d /tmp
 	# Check that the command executed successfully
@@ -83,7 +82,7 @@ function _createKext()
 	ln -s "$gSystemExtensionsDir/AppleHDA.kext/Contents/MacOS/AppleHDA" "$gKext/Contents/MacOS"
 
 	# Copy XML files to kext directory
-	cp /tmp/$gCodecShort/*.xml "$gKext/Contents/Resources"
+	cp /tmp/$gCodecShort/*.zlib "$gKext/Contents/Resources"
 }
 
 function _createInfoPlist()
@@ -121,6 +120,11 @@ function _installKext()
 {
 	# Initialize variables
 	kext="$1"
+
+	# Correct the permissions
+	chmod -R 755 "$gKext"
+	chown -R 0:0 "$gKext"
+
 	echo "Installing $kext..."
 	# Move the kext to /Library/Extensions
 	mv "$kext" "$gExtensionsDir"
@@ -153,6 +157,11 @@ function main()
 	_createKext
 	_createInfoPlist
 	_installKext "$gKext"
+
+	# Delete the temp files
+	rm -f /tmp/$gCodecShort.zip
+	rm -rf /tmp/$gCodecShort
+	rm -rf "$gKext"
 }
 
 clear
