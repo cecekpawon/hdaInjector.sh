@@ -55,7 +55,7 @@ function _getAudioCodec()
 	gInjectorKextPath="AppleHDA$gCodecModel.kext"
 
 	# Print information about the codec
-	echo "$gCodec ($gCodecHex) / ($gCodecDec) detected."
+	echo "$gCodec ($gCodecHex) / ($gCodecDec) detected. Downloading codec files..."
 }
 
 function _downloadCodecFiles()
