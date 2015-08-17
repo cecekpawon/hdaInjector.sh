@@ -127,9 +127,10 @@ function _installKext()
 	chmod -R 755 "$gInjectorKextPath"
 	chown -R 0:0 "$gInjectorKextPath"
 
-	echo "Installing $kext..."
+	printf "Installing $kext..."
 	# Move the kext to /Library/Extensions
 	mv "$kext" "$gExtensionsDir"
+	echo "complete."
 	# Trigger a kernel cache rebuild
 	echo "Triggering a kernel cache rebuild..."
 	touch "$gSystemExtensionsDir"
