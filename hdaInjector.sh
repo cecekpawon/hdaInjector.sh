@@ -28,7 +28,7 @@ gSystemExtensionsDir="/System/Library/Extensions"
 gKextPath="$gSystemExtensionsDir/AppleHDA.kext"
 
 ## Name of the injector kext that will be created & installed
-gKext="AppleHDAUnknown.kext"
+gInjectorKextPath="AppleHDAUnknown.kext"
 
 function _getAudioCodec()
 {
@@ -52,7 +52,7 @@ function _getAudioCodec()
 	# Initialize more variables
 	gCodecShort=$(echo $gCodec | cut -d ' ' -f 2)
 	gCodecModel=$(echo $gCodecShort | tr -d '[:alpha:]')
-	gKext="AppleHDA$gCodecModel.kext"
+	gInjectorKextPath="AppleHDA$gCodecModel.kext"
 
 	# Print information about the codec
 	echo "$gCodec ($gCodecHex) / ($gCodecDec) detected."
@@ -64,6 +64,8 @@ function _downloadCodecFiles()
 	fileName="$gCodecShort.zip"
 	# Download the ZIP containing the codec XML/plist files
 	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Codecs/$fileName?raw=true
+	# Download the plist containing the kext patches
+	curl --output "$/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Patches/$gCodecShort.plist?raw=true
 	# Extract the codec XML/plist files
 	unzip "/tmp/$fileName" -d /tmp
 	# Check that the command executed successfully
@@ -75,24 +77,24 @@ function _downloadCodecFiles()
 function _createKext()
 {
 	# Create kext directories
-	mkdir -p "$gKext/Contents/MacOS"
-	mkdir -p "$gKext/Contents/Resources"
+	mkdir -p "$gInjectorKextPath/Contents/MacOS"
+	mkdir -p "$gInjectorKextPath/Contents/Resources"
 
 	# Create a symbolic link to AppleHDA
-	ln -s "$gSystemExtensionsDir/AppleHDA.kext/Contents/MacOS/AppleHDA" "$gKext/Contents/MacOS"
+	ln -s "$gKextPath/Contents/MacOS/AppleHDA" "$gInjectorKextPath/Contents/MacOS"
 
 	# Copy XML files to kext directory
-	cp /tmp/$gCodecShort/*.zlib "$gKext/Contents/Resources"
+	cp /tmp/$gCodecShort/*.zlib "$gInjectorKextPath/Contents/Resources"
 }
 
 function _createInfoPlist()
 {
 	# Initialize variables
-	plist="$gKext/Contents/Info.plist"
+	plist="$gInjectorKextPath/Contents/Info.plist"
 	hdacd="/tmp/$gCodecShort/hdacd.plist"
 
 	# Copy plist from AppleHDA
-	cp "$gSystemExtensionsDir/AppleHDA.kext/Contents/Info.plist" "$plist"
+	cp "$gKextPath/Contents/Info.plist" "$plist"
 
 	# Change version number of AppleHDA injector kext so it is loaded instead of stock AppleHDA
 	replace=`/usr/libexec/plistbuddy -c "Print :NSHumanReadableCopyright" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
@@ -106,7 +108,7 @@ function _createInfoPlist()
 
 	# Merge the HDA Config Default from the codec's hdacd.plist into the injector's Info.plist
 	/usr/libexec/plistbuddy -c "Add ':HardwareConfigDriver_Temp' dict" $plist
-	/usr/libexec/plistbuddy -c "Merge /$gSystemExtensionsDir/AppleHDA.kext/Contents/PlugIns/AppleHDAHardwareConfigDriver.kext/Contents/Info.plist ':HardwareConfigDriver_Temp'" $plist
+	/usr/libexec/plistbuddy -c "Merge /$gKextPath/Contents/PlugIns/AppleHDAHardwareConfigDriver.kext/Contents/Info.plist ':HardwareConfigDriver_Temp'" $plist
 	/usr/libexec/plistbuddy -c "Copy ':HardwareConfigDriver_Temp:IOKitPersonalities:HDA Hardware Config Resource' ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
 	/usr/libexec/plistbuddy -c "Delete ':HardwareConfigDriver_Temp'" $plist
 	/usr/libexec/plistbuddy -c "Delete ':IOKitPersonalities:HDA Hardware Config Resource:HDAConfigDefault'" $plist
@@ -122,8 +124,8 @@ function _installKext()
 	kext="$1"
 
 	# Correct the permissions
-	chmod -R 755 "$gKext"
-	chown -R 0:0 "$gKext"
+	chmod -R 755 "$gInjectorKextPath"
+	chown -R 0:0 "$gInjectorKextPath"
 
 	echo "Installing $kext..."
 	# Move the kext to /Library/Extensions
@@ -143,26 +145,25 @@ function main()
 	_getAudioCodec
 
 	# If a kext already exists, ask the user if we should delete it or keep it
-	if [ -d "$gKext" ]; then
-		printf "$gKext already exists. Do you want to overwrite it (y/n)? "
+	if [ -d "$gInjectorKextPath" ]; then
+		printf "$gInjectorKextPath already exists. Do you want to overwrite it (y/n)? "
 		read choice
 		case "$choice" in
 			y|Y)
 				echo "Removing directory..."
-				rm -rf "$gKext";;
+				rm -rf "$gInjectorKextPath";;
 		esac
 	fi
 
 	_downloadCodecFiles
 	_createKext
 	_createInfoPlist
-	_installKext "$gKext"
+	_installKext "$gInjectorKextPath"
 
 	# Delete the temp files
 	rm -f /tmp/$gCodecShort.zip
 	rm -rf /tmp/$gCodecShort
-	rm -rf "$gKext"
-}
+	rm -rf "$gKext"}
 
 clear
 

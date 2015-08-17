@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>Comment</key>
+		<string>10.10-VIA VT2021 AppleHDA Patch (1 of 2)</string>
+		<key>Find</key>
+		<data>hBnUEQ==</data>
+		<key>Name</key>
+		<string>AppleHDA</string>
+		<key>Replace</key>
+		<data>QQQGEQ==</data>
+	</dict>
+	<dict>
+		<key>Comment</key>
+		<string>10.11-VIA VT2021 AppleHDA Patch (2 of 2)</string>
+		<key>Find</key>
+		<data>gxnUEQ==</data>
+		<key>Name</key>
+		<string>AppleHDA</string>
+		<key>Replace</key>
+		<data>AAAAAA==</data>
+	</dict>
+</array>
+</plist>
