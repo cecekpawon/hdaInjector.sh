@@ -132,8 +132,9 @@ function _installKext()
 	mv "$kext" "$gExtensionsDir"
 	echo "complete."
 	# Trigger a kernel cache rebuild
-	echo "Triggering a kernel cache rebuild..."
+	printf "Triggering a kernel cache rebuild..."
 	touch "$gSystemExtensionsDir"
+	echo "complete."
 }
 
 function main()
