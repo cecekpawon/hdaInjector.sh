@@ -65,7 +65,7 @@ function _downloadCodecFiles()
 	# Download the ZIP containing the codec XML/plist files
 	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Codecs/$fileName?raw=true
 	# Download the plist containing the kext patches
-	curl --output "$/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Patches/$gCodecShort.plist?raw=true
+	curl --output "/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Patches/$gCodecShort.plist?raw=true
 	# Extract the codec XML/plist files
 	unzip "/tmp/$fileName" -d /tmp
 	# Check that the command executed successfully
@@ -163,7 +163,8 @@ function main()
 	# Delete the temp files
 	rm -f /tmp/$gCodecShort.zip
 	rm -rf /tmp/$gCodecShort
-	rm -rf "$gKext"}
+	rm -rf "$gKext"
+}
 
 clear
 
