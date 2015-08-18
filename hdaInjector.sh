@@ -145,19 +145,24 @@ function main()
 	echo "--------------------------------------------------------------------------------"
 
 	_getAudioCodec
+	_downloadCodecFiles
 
 	# If a kext already exists, ask the user if we should delete it or keep it
-	if [ -d "$gInjectorKextPath" ]; then
+	if [ -d "$gExtensionsDir/$gInjectorKextPath" ]; then
 		printf "$gInjectorKextPath already exists. Do you want to overwrite it (y/n)? "
 		read choice
 		case "$choice" in
 			y|Y)
 				echo "Removing directory..."
-				rm -rf "$gInjectorKextPath";;
+				rm -rf "$gExtensionsDir/$gInjectorKextPath";;
+			*)
+				echo "Exiting..."
+				exit 0
 		esac
 	fi
 
-	_downloadCodecFiles
+	rm -rf "$gInjectorKextPath"
+
 	_createKext
 	_createInfoPlist
 	_installKext "$gInjectorKextPath"
