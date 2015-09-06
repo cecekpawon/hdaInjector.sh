@@ -71,10 +71,10 @@ function _getAudioCodec()
 			283904153) gCodec="Realtek ALC898";;
 			283904256) gCodec="Realtek ALC1150";;
 			285606977) gCodec="VIA VT2021";;
-			*) _printError "Unsupported audio codec ($gCodecIDHex / $gCodecIDDec).";;
+			*) _printError "Unsupported audio codec ($gCodecIDHex / $gCodecIDDec)!";;
 		esac
 	else
-		_printError "No audio codec found in IORegistry."
+		_printError "No audio codec found in IORegistry!"
 	fi
 
 	# Initialize more variables
@@ -103,7 +103,7 @@ function _downloadCodecFiles()
 
 	# Check that the command executed successfully
 	if [ $? -ne 0 ]; then
-		_printError "Failed to download $gCodec files."
+		_printError "Failed to download $gCodec files!"
 	fi
 }
 
