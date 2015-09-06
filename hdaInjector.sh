@@ -93,10 +93,10 @@ function _downloadCodecFiles()
 
 	# Download the ZIP containing the codec XML/plist files
 	printf "${STYLE_BOLD}Downloading $gCodec XML/plist files:${STYLE_RESET}\n"
-	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/laptop/Codecs/$fileName?raw=true
+	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Codecs/$fileName?raw=true
 	# Download the plist containing the kext patches
 	printf "${STYLE_BOLD}Downloading $gCodec kext patches:${STYLE_RESET}\n"
-	curl --output "/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/laptop/Patches/$gCodecShort.plist?raw=true
+	curl --output "/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Patches/$gCodecShort.plist?raw=true
 	printf "${STYLE_BOLD}Creating $gCodec injector kext ($gInjectorKextPath):${STYLE_RESET}\n"
 	# Extract the codec XML/plist files
 	unzip "/tmp/$fileName" -d /tmp
