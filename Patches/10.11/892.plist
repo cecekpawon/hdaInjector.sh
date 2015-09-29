@@ -4,7 +4,7 @@
 <array>
 	<dict>
 		<key>Comment</key>
-		<string>10.10-Realtek ALC892 AppleHDA Patch (1 of 2)</string>
+		<string>ALC892 (1 of 2)</string>
 		<key>Find</key>
 		<data>ixnUEQ==</data>
 		<key>Name</key>
@@ -14,13 +14,33 @@
 	</dict>
 	<dict>
 		<key>Comment</key>
-		<string>10.11-Realtek ALC892 AppleHDA Patch (2 of 2)</string>
+		<string>ALC892 (2 of 2)</string>
 		<key>Find</key>
 		<data>gxnUEQ==</data>
 		<key>Name</key>
 		<string>AppleHDA</string>
 		<key>Replace</key>
 		<data>AAAAAA==</data>
+	</dict>
+	<dict>
+		<key>Comment</key>
+		<string>HDMI Audio (1 of 2)</string>
+		<key>Find</key>
+		<data>PQsMAAA=</data>
+		<key>Name</key>
+		<string>AppleHDAController</string>
+		<key>Replace</key>
+		<data>PQwMAAA=</data>
+	</dict>
+	<dict>
+		<key>Comment</key>
+		<string>HDMI Audio (2 of 2)</string>
+		<key>Find</key>
+		<data>PQwKAAA=</data>
+		<key>Name</key>
+		<string>AppleHDAController</string>
+		<key>Replace</key>
+		<data>PQwMAAA=</data>
 	</dict>
 </array>
 </plist>

@@ -20,15 +20,31 @@ gCodecShort="Unknown"
 ## The audio codec's model (e.g. Realtek ALC898 > 898)
 gCodecModel="0000"
 
+gOSVer="$(sw_vers -productVersion | sed -e 's/\.\([0-9]\)$//g')"
+gDesktopDir="/Users/$(who am i | awk '{print $1}')/Desktop"
+
 ## Path to /Library/Extensions
+gExtensionsDir=$gDesktopDir #debug
 gExtensionsDir="/Library/Extensions"
+
 ## Path to /System/Library/Extensions
 gSystemExtensionsDir="/System/Library/Extensions"
 ## Path to AppleHDA.kext
-gKextPath="$gSystemExtensionsDir/AppleHDA.kext"
+gKextPath="${gSystemExtensionsDir}/AppleHDA.kext"
 
 ## Name of the injector kext that will be created & installed
-gInjectorKextPath="AppleHDAUnknown.kext"
+gInjectorKext="AppleHDAUnknown.kext"
+
+## URL Sources
+# Lets keep codec maintan by lord Toleda, and leave the patch for others
+gUrlCodec="https://github.com/toleda/audio_ALC%d/blob/master/%d.zip?raw=true"
+gRepo="cecekpawon" # theracermaster
+gUrlCloverPatch="https://github.com/${gRepo}/hdaInjector.sh/blob/master/Patches/${gOSVer}/%d.plist?raw=true"
+
+gHdaClover="hda-clover-%d.plist"
+gHdaTmp="/tmp/%d"
+gInjectorKextTmp=""
+gPlistBuddyCmd="/usr/libexec/plistbuddy -c"
 
 ## Styling stuff
 STYLE_RESET="\e[0m"
@@ -50,11 +66,9 @@ COLOR_END="\e[0m"
 
 function _printError()
 {
-	# Initialize variables
-	text="$1"
-
 	# Print the error text and exit
-	printf "${COLOR_RED}${STYLE_BOLD}ERROR: ${STYLE_RESET}${STYLE_BOLD}$text${STYLE_RESET} Exiting...\n"
+	printf "\n${COLOR_RED}${STYLE_BOLD}ERROR: ${STYLE_RESET}${STYLE_BOLD}${1}${STYLE_RESET} Exiting...\n\n"
+	_removeTemp
 	exit 1
 }
 
@@ -67,11 +81,15 @@ function _getAudioCodec()
 	# Identify the codec
 	if [[ ! -z $gCodecIDHex ]]; then
 		case $gCodecIDDec in
+			#283904133) gCodec="Realtek ALC885";;
+			#283904135) gCodec="Realtek ALC887";;
+			#283904136) gCodec="Realtek ALC888";;
+			#283904137) gCodec="Realtek ALC889";;
 			283904146) gCodec="Realtek ALC892";;
-			283904153) gCodec="Realtek ALC898";;
-			283904256) gCodec="Realtek ALC1150";;
-			285606977) gCodec="VIA VT2021";;
-			*) _printError "Unsupported audio codec ($gCodecIDHex / $gCodecIDDec)!";;
+			#283904153) gCodec="Realtek ALC898";;
+			#283904256) gCodec="Realtek ALC1150";;
+			#285606977) gCodec="VIA VT2021";;
+			*) _printError "Unsupported audio codec (${gCodecIDHex} / ${gCodecIDDec})!";;
 		esac
 	else
 		_printError "No audio codec found in IORegistry!"
@@ -80,125 +98,202 @@ function _getAudioCodec()
 	# Initialize more variables
 	gCodecShort=$(echo $gCodec | cut -d ' ' -f 2)
 	gCodecModel=$(echo $gCodecShort | tr -d '[:alpha:]')
-	gInjectorKextPath="AppleHDA$gCodecModel.kext"
+	gHdaTmp=$(printf $gHdaTmp $gCodecModel)
+	gInjectorKext="AppleHDA${gCodecModel}.kext"
+	gInjectorKextTmp="${gHdaTmp}/${gInjectorKext}"
+	gInjectorKextPath="${gExtensionsDir}/${gInjectorKext}"
 
-	printf "Detected audio codec: ${STYLE_BOLD}${COLOR_CYAN}$gCodec ${STYLE_RESET}($gCodecIDHex / $gCodecIDDec)\n"
+	printf "Detected audio codec: ${STYLE_BOLD}${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
 	echo "--------------------------------------------------------------------------------"
 }
 
 function _downloadCodecFiles()
 {
 	# Initialize variables
-	fileName="$gCodecShort.zip"
+	fileName="/tmp/${gCodecModel}.zip"
+
+	gUrlCodec=$(printf $gUrlCodec $gCodecModel $gCodecModel)
 
 	# Download the ZIP containing the codec XML/plist files
-	printf "${STYLE_BOLD}Downloading $gCodec XML/plist files:${STYLE_RESET}\n"
-	curl --output "/tmp/$fileName" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Codecs/$fileName?raw=true
+	if [[ ! -e "${fileName}" ]]; then
+		printf "${STYLE_BOLD}Downloading ${gCodec} XML/plist files:${STYLE_RESET}\n"
+		curl --output "${fileName}" --progress-bar --location $gUrlCodec
+	fi
+
+	gHdaClover="${gDesktopDir}/$(printf $gHdaClover $gCodecModel)"
+	gUrlCloverPatch=$(printf $gUrlCloverPatch $gCodecModel)
+
 	# Download the plist containing the kext patches
-	printf "${STYLE_BOLD}Downloading $gCodec kext patches:${STYLE_RESET}\n"
-	curl --output "/tmp/ktp.plist" --progress-bar --location https://github.com/theracermaster/hdaInjector.sh/blob/master/Patches/$gCodecShort.plist?raw=true
-	printf "${STYLE_BOLD}Creating $gCodec injector kext ($gInjectorKextPath):${STYLE_RESET}\n"
+	if [[ ! -e "${gHdaClover}" ]]; then
+		printf "${STYLE_BOLD}Downloading ${gCodec} kext patches:${STYLE_RESET}\n"
+		curl --output "${gHdaClover}" --progress-bar --location $gUrlCloverPatch
+	fi
+
+	if [ -e "${gHdaClover}" ]; then
+		printf "\nClover kext patches: \"${gHdaClover}\" is ready. Do you want to open it (y/n)? "
+		read choice
+		case "$choice" in
+			y|Y) open -a textEdit "${gHdaClover}";;
+		esac
+	fi
+
 	# Extract the codec XML/plist files
-	unzip "/tmp/$fileName" -d /tmp
+	unzip -oq "${fileName}" -d "/tmp"
 
 	# Check that the command executed successfully
 	if [ $? -ne 0 ]; then
-		_printError "Failed to download $gCodec files!"
+		_printError "Failed to download ${gCodec} files!"
 	fi
 }
 
 function _createKext()
 {
 	# Create kext directories
-	mkdir -p "$gInjectorKextPath/Contents/MacOS"
-	mkdir -p "$gInjectorKextPath/Contents/Resources"
+	mkdir -p "${gInjectorKextTmp}/Contents/MacOS"
+	mkdir -p "${gInjectorKextTmp}/Contents/Resources"
 
 	# Create a symbolic link to AppleHDA
-	ln -s "$gKextPath/Contents/MacOS/AppleHDA" "$gInjectorKextPath/Contents/MacOS"
+	ln -s "${gKextPath}/Contents/MacOS/AppleHDA" "${gInjectorKextTmp}/Contents/MacOS"
 
 	# Copy XML files to kext directory
-	cp /tmp/$gCodecShort/*.zlib "$gInjectorKextPath/Contents/Resources"
+	cp $gHdaTmp/*.zlib "${gInjectorKextTmp}/Contents/Resources"
+}
+
+# Worst method, just work: skip unmatched codec
+function _getCodec()
+{
+  LINES=($(echo $($gPlistBuddyCmd "Print :HDAConfigDefault" $1 -x) | grep -o '<dict>'))
+
+  let cid=0
+  for i in "${LINES[@]}"
+  do
+		codecID=$($gPlistBuddyCmd "Print :HDAConfigDefault:${cid}:CodecID" $1 2>&1)
+
+    if [[ $codecID -eq $gCodecIDDec ]]; then
+    	let cid++
+    	continue
+		else
+			$gPlistBuddyCmd "Delete ':HDAConfigDefault:${cid}'" $1
+			_getCodec $1
+    fi
+
+  	return
+  done
 }
 
 function _createInfoPlist()
 {
 	# Initialize variables
-	plist="$gInjectorKextPath/Contents/Info.plist"
-	hdacd="/tmp/$gCodecShort/hdacd.plist"
+	plist="${gInjectorKextTmp}/Contents/Info.plist"
+	hdacd="${gHdaTmp}/hdacd.plist"
+	tmphdacd="${gHdaTmp}/tmphdacd.plist"
 
 	# Copy plist from AppleHDA
-	cp "$gKextPath/Contents/Info.plist" "$plist"
+	cp "${gKextPath}/Contents/Info.plist" "${plist}"
 
 	# Change version number of AppleHDA injector kext so it is loaded instead of stock AppleHDA
-	replace=`/usr/libexec/plistbuddy -c "Print :NSHumanReadableCopyright" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
-	/usr/libexec/plistbuddy -c "Set :NSHumanReadableCopyright '$replace'" $plist
-	replace=`/usr/libexec/plistbuddy -c "Print :CFBundleGetInfoString" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
-	/usr/libexec/plistbuddy -c "Set :CFBundleGetInfoString '$replace'" $plist
-	replace=`/usr/libexec/plistbuddy -c "Print :CFBundleVersion" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
-	/usr/libexec/plistbuddy -c "Set :CFBundleVersion '$replace'" $plist
-	replace=`/usr/libexec/plistbuddy -c "Print :CFBundleShortVersionString" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
-	/usr/libexec/plistbuddy -c "Set :CFBundleShortVersionString '$replace'" $plist
+	replace=`$gPlistBuddyCmd "Print :NSHumanReadableCopyright" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
+	$gPlistBuddyCmd "Set :NSHumanReadableCopyright '$replace'" $plist
+	replace=`$gPlistBuddyCmd "Print :CFBundleGetInfoString" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
+	$gPlistBuddyCmd "Set :CFBundleGetInfoString '$replace'" $plist
+	replace=`$gPlistBuddyCmd "Print :CFBundleVersion" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
+	$gPlistBuddyCmd "Set :CFBundleVersion '$replace'" $plist
+	replace=`$gPlistBuddyCmd "Print :CFBundleShortVersionString" $plist | perl -Xpi -e 's/(\d*\.\d*)/9\1/'`
+	$gPlistBuddyCmd "Set :CFBundleShortVersionString '$replace'" $plist
 
 	# Merge the HDA Config Default from the codec's hdacd.plist into the injector's Info.plist
-	/usr/libexec/plistbuddy -c "Add ':HardwareConfigDriver_Temp' dict" $plist
-	/usr/libexec/plistbuddy -c "Merge /$gKextPath/Contents/PlugIns/AppleHDAHardwareConfigDriver.kext/Contents/Info.plist ':HardwareConfigDriver_Temp'" $plist
-	/usr/libexec/plistbuddy -c "Copy ':HardwareConfigDriver_Temp:IOKitPersonalities:HDA Hardware Config Resource' ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
-	/usr/libexec/plistbuddy -c "Delete ':HardwareConfigDriver_Temp'" $plist
-	/usr/libexec/plistbuddy -c "Delete ':IOKitPersonalities:HDA Hardware Config Resource:HDAConfigDefault'" $plist
-	/usr/libexec/plistbuddy -c "Delete ':IOKitPersonalities:HDA Hardware Config Resource:PostConstructionInitialization'" $plist
-	/usr/libexec/plistbuddy -c "Add ':IOKitPersonalities:HDA Hardware Config Resource:IOProbeScore' integer" $plist
-	/usr/libexec/plistbuddy -c "Set ':IOKitPersonalities:HDA Hardware Config Resource:IOProbeScore' 2000" $plist
-	/usr/libexec/plistbuddy -c "Merge $hdacd ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
+	$gPlistBuddyCmd "Add ':HardwareConfigDriver_Temp' dict" $plist
+	$gPlistBuddyCmd "Merge /${gKextPath}/Contents/PlugIns/AppleHDAHardwareConfigDriver.kext/Contents/Info.plist ':HardwareConfigDriver_Temp'" $plist
+	$gPlistBuddyCmd "Copy ':HardwareConfigDriver_Temp:IOKitPersonalities:HDA Hardware Config Resource' ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
+	$gPlistBuddyCmd "Delete ':HardwareConfigDriver_Temp'" $plist
+	$gPlistBuddyCmd "Delete ':IOKitPersonalities:HDA Hardware Config Resource:HDAConfigDefault'" $plist
+	$gPlistBuddyCmd "Delete ':IOKitPersonalities:HDA Hardware Config Resource:PostConstructionInitialization'" $plist
+	$gPlistBuddyCmd "Add ':IOKitPersonalities:HDA Hardware Config Resource:IOProbeScore' integer" $plist
+	$gPlistBuddyCmd "Set ':IOKitPersonalities:HDA Hardware Config Resource:IOProbeScore' 2000" $plist
+	#$gPlistBuddyCmd "Merge ${hdacd} ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
+
+	cp $hdacd $tmphdacd
+	_getCodec $tmphdacd
+	$gPlistBuddyCmd "Merge ${tmphdacd} ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
+	rm $tmphdacd
 }
 
 function _installKext()
 {
-	# Initialize variables
-	kext="$1"
+	printf "\n${STYLE_BOLD}Installing ${gInjectorKext}:\n${STYLE_RESET}\n"
 
+	# Install to Extensions Dir
+	cp -R "${gInjectorKextTmp}" "${gInjectorKextPath}"
+
+	_removeTemp
+	_repairPermissions
+}
+
+function _removeTemp()
+{
+	if [ -d "${gHdaTmp}" ]; then
+		rm -rf "${gHdaTmp}"
+	fi
+}
+
+function _repairPermissions()
+{
 	# Correct the permissions
-	chmod -R 755 "$gInjectorKextPath"
-	chown -R 0:0 "$gInjectorKextPath"
+	#chmod -R 755 "${gInjectorKextPath}"
+	chown -R 0:0 "${gInjectorKextPath}"
 
-	printf "\n${STYLE_BOLD}Installing $gInjectorKextPath:${STYLE_RESET}"
-	# Move the kext to /Library/Extensions
-	mv "$kext" "$gExtensionsDir"
+	sudo touch "${gExtensionsDir}"
+	sudo chmod -R 755 "${gExtensionsDir}"
+	sudo kextcache -system-prelinked-kernel
+	sudo kextcache -system-caches
 }
 
 function main()
 {
-	echo "OS X hdaInjector.sh script v$gScriptVersion by theracermaster"
+	echo "OS X hdaInjector.sh script v${gScriptVersion} by theracermaster"
 	echo "Heavily based off Piker-Alpha's AppleHDA8Series script"
 	echo "HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others"
 	echo "--------------------------------------------------------------------------------"
 
+	# Native AppleHDA check
+	if [ ! -d "${gKextPath}" ]; then
+		_printError "${gKextPath} not found!"
+	fi
+
 	_getAudioCodec
-	_downloadCodecFiles
 
 	# If a kext already exists, ask the user if we should delete it or keep it
-	if [ -d "$gExtensionsDir/$gInjectorKextPath" ]; then
-		printf "\n$gInjectorKextPath already exists. Do you want to overwrite it (y/n)? "
+	if [ -d "${gInjectorKextPath}" ]; then
+		printf "\n${gInjectorKext} already exists. Do you want to overwrite it (y/n)? "
 		read choice
 		case "$choice" in
 			y|Y)
-				echo "Removing directory..."
-				rm -rf "$gExtensionsDir/$gInjectorKextPath";;
+				rm -rf "${gInjectorKextPath}";;
 			*)
 				echo "Exiting..."
 				exit 0;;
 		esac
 	fi
 
+	printf "\n${STYLE_BOLD}Creating ${gCodec} injector kext ($gInjectorKext):${STYLE_RESET}\n"
+
+	_removeTemp
+	_downloadCodecFiles
 	_createKext
 	_createInfoPlist
-	_installKext "$gInjectorKextPath"
+	_installKext
 
-	printf "${STYLE_BOLD} installation complete, exiting...${STYLE_RESET}\n"
+	printf "\n${STYLE_BOLD}Installation complete, exiting...${STYLE_RESET}\n"
 
-	# Delete the temp files
-	sudo rm -f /tmp/$gCodecShort.zip
-	sudo rm -rf /tmp/$gCodecShort
-	sudo rm -rf "$gInjectorKextPath"
+	printf "\nReboot now (y/n)? "
+	read choice
+	case "$choice" in
+		y|Y)
+			sudo reboot;;
+		*)
+			echo "Exiting..."
+			exit 0;;
+	esac
 }
 
 clear
@@ -207,7 +302,7 @@ clear
 if [ $gID -ne 0 ]; then
 	# Re-run the script as root
 	echo "This script needs to be run as root."
-	sudo "$0"
+	sudo "${0}"
 else
 	# We are root, so just call the main function
 	main
