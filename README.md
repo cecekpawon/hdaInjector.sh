@@ -1,6 +1,6 @@
 ###Pre:
 
-**hdaInjector.sh** originally maintain by [@theracermaster](https://github.com/theracermaster/) for [Gigabyte-GA-Z77X-DSDT-Patch](https://github.com/theracermaster/Gigabyte-GA-Z77X-DSDT-Patch) with [@toleda](https://github.com/theracermaster/), [@Mirone](https://github.com/Mirone/), [@Piker-Alpha](https://github.com/Piker-Alpha/) etc helps.
+**hdaInjector.sh** originally maintain by [@theracermaster](https://github.com/theracermaster) for [Gigabyte-GA-Z77X-DSDT-Patch](https://github.com/theracermaster/Gigabyte-GA-Z77X-DSDT-Patch) with [@toleda](https://github.com/toleda), [@Mirone](https://github.com/Mirone), [@Piker-Alpha](https://github.com/Piker-Alpha) etc helps.
 
 ###Mods:
 
