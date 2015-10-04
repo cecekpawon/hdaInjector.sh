@@ -1,4 +1,5 @@
 exclude/*
+Codecs/*
 
 .DS_Store
 .AppleDouble

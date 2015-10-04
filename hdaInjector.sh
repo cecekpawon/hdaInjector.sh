@@ -40,7 +40,7 @@ gKextPath="${gSystemExtensionsDir}/AppleHDA.kext"
 gInjectorKext="AppleHDAUnknown.kext"
 
 ## URL Sources
-# Lets keep codec maintan by lord Toleda, and leave the patch for others
+# Lets keep codec maintain by lord Toleda, and leave the patch for others
 gUrlCodec="https://github.com/toleda/audio_ALC%d/blob/master/%d.zip?raw=true"
 gRepo="cecekpawon" # theracermaster
 gUrlCloverPatch="https://github.com/${gRepo}/hdaInjector.sh/blob/master/Patches/${gOSVer}/%d.plist?raw=true"
@@ -80,7 +80,6 @@ function _printError()
 function _removeTemp()
 {
 	printf "\nCleaning up.."
-
 	rm -rf "${gHdaTmp}"
 }
 
@@ -122,6 +121,8 @@ function _getAudioCodec()
 
 function _downloadCodecFiles()
 {
+	printf "\n\n${STYLE_BOLD}Downloading required files:${STYLE_RESET}\n"
+
 	# Initialize variables
 	fileName="/tmp/${gCodecModel}.zip"
 
@@ -129,7 +130,7 @@ function _downloadCodecFiles()
 
 	# Download the ZIP containing the codec XML/plist files
 	if [[ ! -e "${fileName}" ]]; then
-		printf "\n\nDownloading ${gCodec} XML/plist files:\n"
+		printf "\n${STYLE_BOLD}${gCodec}${STYLE_RESET} XML/plist files:\n"
 		curl --output "${fileName}" --progress-bar --location $gUrlCodec
 	fi
 
@@ -138,12 +139,12 @@ function _downloadCodecFiles()
 
 	# Download the plist containing the kext patches
 	if [[ ! -e "${gHdaClover}" ]]; then
-		printf "\n\nDownloading ${gCodec} kext patches:\n"
+		printf "\n${STYLE_BOLD}${gCodec}${STYLE_RESET} Clover KextsToPatch:\n"
 		curl --output "${gHdaClover}" --progress-bar --location $gUrlCloverPatch
 	fi
 
 	if [ -e "${gHdaClover}" ]; then
-		printf "\n\n${STYLE_BOLD}${COLOR_GREEN}Clover KextsToPatch: \"${gHdaClover}\" is ready. ${STYLE_RESET}Do you want to open it (y/n)? "
+		printf "\n${STYLE_BOLD}${COLOR_GREEN}Clover KextsToPatch is ready: ${STYLE_RESET}${COLOR_BLUE}${gHdaClover}${STYLE_RESET}\nDo you want to open it (y/n)? "
 		read choice
 		case "$choice" in
 			y|Y) open -a textEdit "${gHdaClover}";;
@@ -232,7 +233,7 @@ function _createInfoPlist()
 
 function _installKext()
 {
-	printf "\n${STYLE_BOLD}Installing ${gInjectorKext}:${STYLE_RESET}"
+	printf "\n${STYLE_BOLD}Installing ${gInjectorKext}: ${STYLE_RESET}${COLOR_BLUE}${gInjectorKextPath}${STYLE_RESET}"
 
 	# Install to Extensions Dir
 	cp -R "${gInjectorKextTmp}" "${gInjectorKextPath}"
@@ -246,7 +247,7 @@ function _installKext()
 
 function _repairPermissions()
 {
-	printf "\nRepairing Permissions.."
+	printf "\nRepairing Permissions..\n"
 
 	# Correct the permissions
 	#chmod -R 755 "${gInjectorKextPath}"
@@ -274,7 +275,7 @@ function main()
 
 	# If a kext already exists, ask the user if we should delete it or keep it
 	if [ -d "${gInjectorKextPath}" ]; then
-		printf "\n${COLOR_RED}${gInjectorKext} already exists. ${STYLE_RESET}Do you want to overwrite it (y/n)? "
+		printf "\n${COLOR_RED}${gInjectorKext} already exists: ${STYLE_RESET}${COLOR_BLUE}${gInjectorKextPath}${STYLE_RESET}\nDo you want to overwrite it (y/n)? "
 		read choice
 		case "$choice" in
 			y|Y) rm -rf "${gInjectorKextPath}";;
