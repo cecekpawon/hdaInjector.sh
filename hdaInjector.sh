@@ -245,7 +245,6 @@ function _createInfoPlist()
 
 	cp $hdacd $tmphdacd
 	_getMatchedCodec $tmphdacd
-	exit
 	$gPlistBuddyCmd "Merge ${tmphdacd} ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
 }
 
