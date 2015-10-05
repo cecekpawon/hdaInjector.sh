@@ -12,3 +12,11 @@ This mods specifically made for ALC892 & El Capitan ATM with HD4000 HDMI audio s
 - Working hacks with [Clover EFI-bootloader](http://sourceforge.net/projects/cloverefiboot/)
 - Native AppleHDA installed
 - Layout-id: 3 for HDEF - HDMI audio
+
+###Usage:
+
+```
+#Params fully optional
+Layout-id: hdaInjector.sh -l 3 (stripdown data, 3 for HDMI)
+Codec-id: hdaInjector.sh -c 892
+```

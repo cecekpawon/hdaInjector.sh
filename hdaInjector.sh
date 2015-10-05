@@ -11,15 +11,17 @@ gDebug=0
 gID=$(id -u)
 
 ## The audio codec
-gCodec="Unknown"
+gCodec=""
 ## The audio codec's hex identifier
-gCodecIDHex="0x00000000"
+gCodecIDHex=""
 ## The audio codec's decimal identifier
-gCodecIDDec="000000000"
+gCodecIDDec=""
 ## The audio codec's short name (e.g. Realtek ALC898 > ALC898)
-gCodecShort="Unknown"
+gCodecShort=""
 ## The audio codec's model (e.g. Realtek ALC898 > 898)
-gCodecModel="0000"
+gCodecModel=""
+## Layout-id
+gLayID=0
 
 gOSVer="$(sw_vers -productVersion | sed -e 's/\.\([0-9]\)$//g')"
 gDesktopDir="/Users/$(who am i | awk '{print $1}')/Desktop"
@@ -73,7 +75,7 @@ function _printError()
 	# Print the error text and exit
 	printf "\n${STYLE_BOLD}${COLOR_RED}ERROR: ${STYLE_RESET}${STYLE_BOLD}${1}${STYLE_RESET}"
 	_removeTemp
-	echo "Exiting.."
+	printf "\n\nExiting..\n"
 	exit 1
 }
 
@@ -85,11 +87,16 @@ function _removeTemp()
 
 function _getAudioCodec()
 {
-	# Initialize variables
-	gCodecIDHex=$(ioreg -rxn IOHDACodecDevice | grep VendorID | awk '{ print $4 }' | sed 's/ffffffff//' | grep '0x10ec')
-	gCodecIDDec=$(echo $((16#$(echo $gCodecIDHex | sed 's/0x//'))))
-
+	gAutoCodec="User"
+	gAutoLayID="All"
 	# Identify the codec
+	if [[ -z $gCodecIDHex ]]; then
+		# Initialize variables
+		gAutoCodec="Detected"
+		gCodecIDHex=$(ioreg -rxn IOHDACodecDevice | grep VendorID | awk '{ print $4 }' | sed 's/ffffffff//' | grep '0x10ec')
+		gCodecIDDec=$(echo $((16#$(echo $gCodecIDHex | sed 's/0x//'))))
+	fi
+
 	if [[ ! -z $gCodecIDHex ]]; then
 		case $gCodecIDDec in
 			#283904133) gCodec="Realtek ALC885";;
@@ -114,8 +121,10 @@ function _getAudioCodec()
 	gInjectorKextTmp="${gHdaTmp}/${gInjectorKext}"
 	gInjectorKextPath="${gExtensionsDir}/${gInjectorKext}"
 
-	printf "Detected audio codec: ${STYLE_BOLD}${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
-	printf "Note: ${STYLE_BOLD}Layout-id: 3 ${STYLE_RESET}for HDEF - HDMI audio\n"
+	gAutoLayID=$((( $gLayID )) && echo $gLayID || echo "All")
+
+	printf "${STYLE_BOLD}Set Layout-id: ${COLOR_CYAN}${gAutoLayID}${STYLE_RESET}\n"
+	printf "${STYLE_BOLD}Set Codec-id: ${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
 	echo "--------------------------------------------------------------------------------"
 }
 
@@ -181,16 +190,24 @@ function _getMatchedCodec()
   let cid=0
   for i in "${LINES[@]}"
   do
+  	let gLayIDOK=0
 		codecID=$($gPlistBuddyCmd "Print :HDAConfigDefault:${cid}:CodecID" $1 2>&1)
+		LayoutID=$($gPlistBuddyCmd "Print :HDAConfigDefault:${cid}:LayoutID:" $1 2>&1)
 
-    if [[ $codecID -eq $gCodecIDDec ]]; then
+    if [ $codecID -eq $gCodecIDDec ]; then
+    	case $gLayID in
+    				0) let gLayIDOK++;;
+    		1|2|3) if [ $gLayID -eq $LayoutID ]; then let gLayIDOK++; fi;;
+    	esac
+    fi
+
+    if [ $gLayIDOK -ne 0 ]; then
     	let cid++
     	continue
 		else
-			$gPlistBuddyCmd "Delete ':HDAConfigDefault:${cid}'" $1
+			$gPlistBuddyCmd "Delete :HDAConfigDefault:${cid}" $1
 			_getMatchedCodec $1
     fi
-
   	return
   done
 }
@@ -228,6 +245,7 @@ function _createInfoPlist()
 
 	cp $hdacd $tmphdacd
 	_getMatchedCodec $tmphdacd
+	exit
 	$gPlistBuddyCmd "Merge ${tmphdacd} ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
 }
 
@@ -265,11 +283,42 @@ function main()
 	echo "Heavily based off Piker-Alpha's AppleHDA8Series script"
 	echo "HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others"
 	echo "--------------------------------------------------------------------------------"
+	echo "Usage: Params fully optional"
+	echo "Layout-id: ${0##*/} -l 3 (stripdown data, 3 for HDMI)"
+	echo "Codec-id: ${0##*/} -c 892"
+	echo "--------------------------------------------------------------------------------"
 
 	# Native AppleHDA check
 	if [ ! -d "${gKextPath}" ]; then
 		_printError "${gKextPath} not found!"
 	fi
+
+	while true ; do
+		case "$1" in
+			-l)
+					case "$2" in
+            1|2|3)
+              gLayID=$2
+              ;;
+            *)
+              _printError "Layout-id not supported (1/2/3)!"
+              ;;
+					esac
+					shift 2;;
+			-c)
+					case "$2" in
+						892) #885|887|888|889|892|898|1150
+							gCodecIDHex="0x10ec0${2}";
+						 	gCodecIDDec=`echo $((16#${gCodecIDHex:2}))`
+						  ;;
+            *)
+              _printError "Codec not supported (manually edit source)!"
+              ;;
+					esac
+					shift 2;;
+       *) break;;
+		esac
+	done
 
 	_getAudioCodec
 
@@ -294,13 +343,15 @@ function main()
 
 	printf "\n\n${STYLE_BOLD}Installation complete!${STYLE_RESET}"
 
-	printf "\n\nReboot now (y/n)? "
-	read choice
-	case "$choice" in
-		y|Y) sudo reboot;;
-			*) echo "Exiting.."
-				 return 1;;
-	esac
+	if (( ! $gDebug )); then
+		printf "\n\nReboot now (y/n)? "
+		read choice
+		case "$choice" in
+			y|Y) sudo reboot;;
+		esac
+	fi
+
+	printf "\n\nExiting..\n"
 }
 
 clear
@@ -309,10 +360,10 @@ clear
 if [ $gID -ne 0 ]; then
 	# Re-run the script as root
 	echo "This script needs to be run as root."
-	sudo "${0}"
+	sudo "${0}" "$@"
 else
 	# We are root, so just call the main function
-	main
+	main "$@"
 fi
 
 exit 0
