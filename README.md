@@ -17,6 +17,7 @@ This mods specifically made for ALC892 & El Capitan ATM with HD4000 HDMI audio s
 
 ```
 #Params fully optional
-Layout-id: hdaInjector.sh -l 3 (stripdown data, 3 for HDMI)
+Method: hdaInjector.sh -m 1 (1: Toleda | 2: Mirone)
+Layout-id: hdaInjector.sh -l 3 (-m 1: -l: 1/2/3 | -m 2: -l: 5/7/9)
 Codec-id: hdaInjector.sh -c 892
 ```
