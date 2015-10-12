@@ -300,16 +300,16 @@ function _installKext()
 
 function _repairPermissions()
 {
-  printf "\nRepairing Permissions..\n"
+  printf "\nRepairing Permissions.."
 
-  # Correct the permissions
-  #chmod -R 755 "${gInjectorKextPath}"
-  chown -R 0:0 "${gInjectorKextPath}"
-
-  sudo touch "${gExtensionsDir}"
+  sudo chown -R root:wheel "${gExtensionsDir}"
   sudo chmod -R 755 "${gExtensionsDir}"
-  sudo kextcache -system-prelinked-kernel
-  sudo kextcache -system-caches
+  sudo touch "${gExtensionsDir}"
+
+  printf "\nUpdating Caches.."
+
+  sudo kextcache -system-prelinked-kernel &>/dev/null
+  sudo kextcache -system-caches &>/dev/null
 }
 
 function _checkLayoutId()
