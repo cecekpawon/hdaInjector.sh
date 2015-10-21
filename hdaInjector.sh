@@ -282,6 +282,8 @@ function _createInfoPlist()
   cp $hdacd $tmphdacd
   _getMatchedCodec $tmphdacd
   $gPlistBuddyCmd "Merge ${tmphdacd} ':IOKitPersonalities:HDA Hardware Config Resource'" $plist
+  $gPlistBuddyCmd "Delete ':IOKitPersonalities:HDA Driver'" $plist &>/dev/null
+  $gPlistBuddyCmd "Delete ':IOKitPersonalities:HDA Generic Codec Driver'" $plist &>/dev/null
 }
 
 function _installKext()
@@ -310,6 +312,8 @@ function _repairPermissions()
 
   sudo kextcache -system-prelinked-kernel &>/dev/null
   sudo kextcache -system-caches &>/dev/null
+
+  printf " done!"
 }
 
 function _checkLayoutId()
@@ -397,11 +401,14 @@ function main()
   printf "\n\n${STYLE_BOLD}Installation complete!${STYLE_RESET}"
 
   if (( ! $gDebug )); then
-    printf "\n\nReboot now (y/n)? "
-    read choice
-    case "$choice" in
-      y|Y) sudo reboot;;
-    esac
+    #printf "\n\nReboot now (y/n)? "
+    #read choice
+    #case "$choice" in
+    #  y|Y) sudo reboot;;
+    #esac
+
+    #show restart dialog
+    osascript -e 'tell app "loginwindow" to «event aevtrrst»'
   fi
 
   printf "\n\nExiting..\n"
