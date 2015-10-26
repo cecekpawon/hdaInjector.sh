@@ -23,12 +23,13 @@ gCodecModel=""
 ## Layout-id
 gLayID=0
 
-gOSVer="$(sw_vers -productVersion | sed -e 's/\.\([0-9]\)$//g')"
+gOSVer="$(sw_vers -productVersion | sed -e 's/\.0$//g')"
+gOSVerShort="$(echo "${gOSVer}" | sed -e 's/\.\([0-9]\)$//g')"
 gDesktopDir="/Users/$(who am i | awk '{print $1}')/Desktop"
 
 ## Path to /Library/Extensions
 if (( $gDebug )); then
-  gExtensionsDir=$gDesktopDir
+  gExtensionsDir="${gDesktopDir}"
 else
   gExtensionsDir="/Library/Extensions"
 fi
@@ -43,10 +44,10 @@ gInjectorKext=""
 
 ## URL Sources
 gUrlCodec[1]="https://github.com/toleda/audio_ALC%d/blob/master/%d.zip?raw=true"
-gUrlCodec[2]="https://github.com/Mirone/AppleHDA_10.11/blob/master/Desktop's/AppleHDA-272.50-ALC%d.zip?raw=true"
+gUrlCodec[2]="https://github.com/Mirone/AppleHDA_%s/blob/master/Desktop's/AppleHDA-%s-ALC%d.zip?raw=true"
 
-gRepo="cecekpawon"
-gUrlCloverPatch="https://github.com/${gRepo}/hdaInjector.sh/blob/master/Patches/${gOSVer}/%d.plist?raw=true"
+gRepo="cecekpawon" # Change to your repo
+gUrlCloverPatch="https://github.com/${gRepo}/hdaInjector.sh/blob/master/Patches/${gOSVerShort}/%d.plist?raw=true"
 gMethod=1 # 1: toleda | 2: mirone
 
 gHdaClover="hda-clover-%d.plist"
@@ -123,9 +124,9 @@ function _getAudioCodec()
   gFixedLayID=$((( $gLayID )) && echo $gLayID || echo "All")
   gFixedMethod=$((( $gMethod == 2)) && echo "Mirone" || echo "Toleda")
 
-  printf "${STYLE_BOLD}Set Layout-id: ${COLOR_CYAN}${gFixedLayID}${STYLE_RESET}\n"
-  printf "${STYLE_BOLD}Set Method: ${COLOR_CYAN}${gMethod} by ${gFixedMethod}${STYLE_RESET}\n"
-  printf "${STYLE_BOLD}Set Codec-id: ${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
+  printf "${STYLE_BOLD}Set Layout-id\t: ${COLOR_CYAN}${gFixedLayID}${STYLE_RESET}\n"
+  printf "${STYLE_BOLD}Set Method\t\t: ${COLOR_CYAN}[${gMethod}] by ${gFixedMethod}${STYLE_RESET}\n"
+  printf "${STYLE_BOLD}Set Codec-id\t: ${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
   echo "--------------------------------------------------------------------------------"
 }
 
@@ -136,7 +137,12 @@ function _downloadCodecFiles()
   # Initialize variables
   fileName="/tmp/${gMethod}_${gCodecModel}.zip"
 
-  gUrlCodec=$(printf ${gUrlCodec[$gMethod]} $gCodecModel $gCodecModel)
+  case $gMethod in
+    1 ) gUrlCodec=$(printf ${gUrlCodec[$gMethod]} $gCodecModel $gCodecModel)
+      ;;
+    2 ) gUrlCodec=$(printf ${gUrlCodec[$gMethod]} $gOSVer $gHDAVer $gCodecModel)
+      ;;
+  esac
 
   # Download the ZIP containing the codec XML/plist files
   if [ ! -e $fileName ]; then
@@ -316,6 +322,12 @@ function _repairPermissions()
   printf " done!"
 }
 
+function _checkHDAVersion()
+{
+  # TODO: Useful for checking supported patch
+  gHDAVer=$($gPlistBuddyCmd "Print ':CFBundleVersion'" "${gKextPath}/Contents/Info.plist" $1 2>&1)
+}
+
 function _checkLayoutId()
 {
   case $gLayID in
@@ -329,20 +341,22 @@ function _checkLayoutId()
 
 function main()
 {
-  echo "OS X hdaInjector.sh script v${gScriptVersion} by theracermaster"
-  echo "Heavily based off Piker-Alpha's AppleHDA8Series script"
-  echo "HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others"
-  echo "--------------------------------------------------------------------------------"
-  echo "Usage: Params fully optional"
-  echo "Method: ${0##*/} -m 1 (1: Toleda | 2: Mirone)"
-  echo "Layout-id: ${0##*/} -l 3 (-m 1: -l: 1/2/3 | -m 2: -l: 5/7/9)"
-  echo "Codec-id: ${0##*/} -c 892"
-  echo "--------------------------------------------------------------------------------"
+  tabs -2
+
+  printf "`cat <<EOF
+${STYLE_BOLD}OS X hdaInjector.sh script v${gScriptVersion} by theracermaster${STYLE_RESET}
+Heavily based off Piker-Alpha's AppleHDA8Series script
+HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others
+--------------------------------------------------------------------------------
+${STYLE_BOLD}Usage (Params fully optional):${STYLE_RESET}
+- Method\t\t\t: ./${0##*/} -m 1 (1: Toleda | 2: Mirone)
+- Layout-id\t\t: ./${0##*/} -l 3 (-m 1: -l: 1/2/3 | -m 2: -l: 5/7/9)
+- Codec-id\t\t: ./${0##*/} -c 892
+--------------------------------------------------------------------------------
+EOF`\n"
 
   # Native AppleHDA check
-  if [ ! -d "${gKextPath}" ]; then
-    _printError "${gKextPath} not found!"
-  fi
+  [[ ! -d "${gKextPath}" ]] && _printError "${gKextPath} not found!"
 
   while true ; do
     case "$1" in
@@ -376,6 +390,7 @@ function main()
     esac
   done
 
+  _checkHDAVersion
   _checkLayoutId
   _getAudioCodec
 
