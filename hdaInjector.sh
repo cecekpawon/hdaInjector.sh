@@ -23,6 +23,9 @@ gCodecModel=""
 ## Layout-id
 gLayID=0
 
+# Patern array
+gAppleHDAPatchPatternArray=()
+
 gOSVer="$(sw_vers -productVersion | sed -e 's/\.0$//g')"
 gOSVerShort="$(echo "${gOSVer}" | sed -e 's/\.\([0-9]\)$//g')"
 gDesktopDir="/Users/$(who am i | awk '{print $1}')/Desktop"
@@ -43,12 +46,10 @@ gKextPath="${gSystemExtensionsDir}/AppleHDA.kext"
 gInjectorKext=""
 
 ## URL Sources
-gUrlCodec[1]="https://github.com/toleda/audio_ALC%d/blob/master/%d.zip?raw=true"
-gUrlCodec[2]="https://github.com/Mirone/AppleHDA_%s/blob/master/Desktop's/AppleHDA-%s-ALC%d.zip?raw=true"
+gUrlCodec="https://github.com/toleda/audio_ALC%d/blob/master/%d.zip?raw=true"
 
 gRepo="cecekpawon" # Change to your repo
 gUrlCloverPatch="https://github.com/${gRepo}/hdaInjector.sh/blob/master/Patches/${gOSVerShort}/%d.plist?raw=true"
-gMethod=1 # 1: toleda | 2: mirone
 
 gHdaClover="hda-clover-%d.plist"
 gHdaTmp="/tmp/%d"
@@ -122,10 +123,8 @@ function _getAudioCodec()
   gInjectorKextPath="${gExtensionsDir}/${gInjectorKext}"
 
   gFixedLayID=$((( $gLayID )) && echo $gLayID || echo "All")
-  gFixedMethod=$((( $gMethod == 2)) && echo "Mirone" || echo "Toleda")
 
   printf "${STYLE_BOLD}Set Layout-id\t: ${COLOR_CYAN}${gFixedLayID}${STYLE_RESET}\n"
-  printf "${STYLE_BOLD}Set Method\t\t: ${COLOR_CYAN}[${gMethod}] by ${gFixedMethod}${STYLE_RESET}\n"
   printf "${STYLE_BOLD}Set Codec-id\t: ${COLOR_CYAN}${gCodec} ${STYLE_RESET}(${gCodecIDHex} / ${gCodecIDDec})\n"
   echo "--------------------------------------------------------------------------------"
 }
@@ -135,19 +134,14 @@ function _downloadCodecFiles()
   printf "\n\n${STYLE_BOLD}Downloading required files:${STYLE_RESET}\n"
 
   # Initialize variables
-  fileName="/tmp/${gMethod}_${gCodecModel}.zip"
+  fileName="/tmp/${gCodecModel}.zip"
 
-  case $gMethod in
-    1 ) gUrlCodec=$(printf ${gUrlCodec[$gMethod]} $gCodecModel $gCodecModel)
-      ;;
-    2 ) gUrlCodec=$(printf ${gUrlCodec[$gMethod]} $gOSVer $gHDAVer $gCodecModel)
-      ;;
-  esac
+  gUrlCodecTmp=$(printf ${gUrlCodec} $gCodecModel $gCodecModel)
 
   # Download the ZIP containing the codec XML/plist files
   if [ ! -e $fileName ]; then
     printf "\n${STYLE_BOLD}${gCodec}${STYLE_RESET} XML/plist files:\n"
-    curl --output $fileName --progress-bar --location $gUrlCodec
+    curl --output $fileName --progress-bar --location $gUrlCodecTmp
   fi
 
   gHdaClover="${gDesktopDir}/$(printf $gHdaClover $gCodecModel)"
@@ -159,7 +153,7 @@ function _downloadCodecFiles()
     curl --output "${gHdaClover}" --progress-bar --location $gUrlCloverPatch
   fi
 
-  if [ -e "${gHdaClover}" ]; then
+  if [[ $gDebug -eq 0 &&  -e "${gHdaClover}" ]]; then
     printf "\n${STYLE_BOLD}${COLOR_GREEN}Clover KextsToPatch is ready: ${STYLE_RESET}${COLOR_BLUE}${gHdaClover}${STYLE_RESET}\nDo you want to open it (y/n)? "
     read choice
     case "$choice" in
@@ -173,30 +167,11 @@ function _downloadCodecFiles()
   zlibs=("Platforms")
   if (( $gLayID )); then
     zlibs+=($gLayID)
+  else
+    zlibs+=(1 2 3)
   fi
 
-  case $gMethod in
-    1) # Toleda
-      gMethodPath=$gHdaTmp
-      if (( ! $gLayID )); then
-        zlibs+=(1 2 3)
-      fi
-      ;;
-    2) # Mirone
-      gMethodPath="${gHdaTmp}/AppleHDA.kext/Contents"
-      if (( ! $gLayID )); then
-        zlibs+=(5 7 9)
-      fi
-
-      cp "${gMethodPath}/PlugIns/AppleHDAHardwareConfigDriver.kext/Contents/Info.plist" $gHdaTmp
-      $gPlistBuddyCmd "Copy ':IOKitPersonalities:HDA Hardware Config Resource:HDAConfigDefault' ':Tmp:HDAConfigDefault'" "${gHdaTmp}/Info.plist"
-      $gPlistBuddyCmd "Print :Tmp" "$gHdaTmp/Info.plist" -x > "${gHdaTmp}/hdacd.tmp"
-      mv "${gHdaTmp}/hdacd.tmp" "${gHdaTmp}/hdacd.plist"
-      gMethodPath+="/Resources"
-      ;;
-  esac
-
-  mkdir "${gHdaTmp}/tmp" && mv $gMethodPath/*.zlib "${gHdaTmp}/tmp"
+  mkdir "${gHdaTmp}/tmp" && mv $gHdaTmp/*.zlib "${gHdaTmp}/tmp"
   for xml in "${zlibs[@]}"
   do
     xml=$((($xml == "Platforms"))  && echo $xml || echo "layout${xml}")
@@ -215,8 +190,12 @@ function _createKext()
   mkdir -p "${gInjectorKextTmp}/Contents/MacOS"
   mkdir -p "${gInjectorKextTmp}/Contents/Resources"
 
-  # Create a symbolic link to AppleHDA
-  ln -s "${gKextPath}/Contents/MacOS/AppleHDA" "${gInjectorKextTmp}/Contents/MacOS"
+  if [ ${#gAppleHDAPatchPatternArray[@]} -ne 0 ]; then
+    doBinPatch
+  else
+    # Create a symbolic link to AppleHDA
+    ln -s "${gKextPath}/Contents/MacOS/AppleHDA" "${gInjectorKextTmp}/Contents/MacOS"
+  fi
 
   # Copy XML files to kext directory
   cp $gHdaTmp/*.zlib "${gInjectorKextTmp}/Contents/Resources"
@@ -236,8 +215,8 @@ function _getMatchedCodec()
 
     if [ $codecID -eq $gCodecIDDec ]; then
       case $gLayID in
-                  0) let gLayIDOK++;;
-        1|2|3|5|7|9) if [ $gLayID -eq $LayoutID ]; then let gLayIDOK++; fi;;
+            0) let gLayIDOK++;;
+        1|2|3) if [ $gLayID -eq $LayoutID ]; then let gLayIDOK++; fi;;
       esac
     fi
 
@@ -328,15 +307,34 @@ function _checkHDAVersion()
   gHDAVer=$($gPlistBuddyCmd "Print ':CFBundleVersion'" "${gKextPath}/Contents/Info.plist" $1 2>&1)
 }
 
-function _checkLayoutId()
+function doBinPatch()
 {
-  case $gLayID in
-        0) return;;
-    1|2|3) if [ $gMethod == 1 ]; then return; fi;;
-    5|7|9) if [ $gMethod == 2 ]; then return; fi;;
-  esac
+  echo "Bin patching AppleHDA..."
+  sourceFile="${gKextPath}/Contents/MacOS/AppleHDA"
+  targetFile="${gInjectorKextTmp}/Contents/MacOS/AppleHDA"
+  cp -p "${sourceFile}" "${targetFile}"
+  if (( $gDebug )); then
+    cp -p "${sourceFile}" "${targetFile}.bak"
+  fi
+  for patt in "${gAppleHDAPatchPatternArray[@]}"
+  do
+    /usr/bin/perl -pi -e 's|'${patt}'|g' "${targetFile}"
+  done
+}
 
-  _printError "Layout-id not supported (1/2/3/5/7/9)!"
+function _checkPatchPatterns()
+{
+  IFS='#' read -a patts <<< "${1}"
+
+  for patt in "${patts[@]}"
+  do
+    item=$(echo $patt | sed -e 's/x/\\x/g' -e 's/\\\\/\\/g')
+    search=$(echo $item | sed -e 's/,.*$//g')
+    replace=$(echo $item | sed -e 's/.*,//g')
+    if [[ ${#search} == ${#replace} ]]; then
+      gAppleHDAPatchPatternArray+=("${search}|${replace}")
+    fi
+  done
 }
 
 function main()
@@ -349,60 +347,60 @@ Heavily based off Piker-Alpha's AppleHDA8Series script
 HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others
 --------------------------------------------------------------------------------
 ${STYLE_BOLD}Usage (Params fully optional):${STYLE_RESET}
-- Method\t\t\t: ./${0##*/} -m 1 (1: Toleda | 2: Mirone)
-- Layout-id\t\t: ./${0##*/} -l 3 (-m 1: -l: 1/2/3 | -m 2: -l: 5/7/9)
+- Layout-id\t\t: ./${0##*/} -l 3 (-l: 1/2/3)
 - Codec-id\t\t: ./${0##*/} -c 892
+- Bin Patch\t\t: ./${0##*/} -b \\\\\x8b\\\\\x19\\\\\xd4\\\\\x11,\\\\\x92\\\\\x08\\\\\xec\\\\\x10
+\t\t\t\t\t\t\t\tUse '#' as multiple patch pattern separator
 --------------------------------------------------------------------------------
 EOF`\n"
 
   # Native AppleHDA check
   [[ ! -d "${gKextPath}" ]] && _printError "${gKextPath} not found!"
 
-  while true ; do
-    case "$1" in
-      -l)
-          case "$2" in
-            1|2|3|5|7|9) gLayID=$2;;
-          esac
-          shift 2;;
-      -c)
-          case "$2" in
-            892) #885|887|888|889|892|898|1150
-              gCodecIDHex="0x10ec0${2}";
-              gCodecIDDec=`echo $((16#${gCodecIDHex:2}))`
-              ;;
-            *)
-              _printError "Codec not supported (manually edit source)!"
-              ;;
-          esac
-          shift 2;;
-      -m)
-          case "$2" in
-            1|2)
-              gMethod=$2
-              ;;
-            *)
-              _printError "Method not supported (1: Toleda | 2: Mirone)!"
-              ;;
-          esac
-          shift 2;;
-       *) break;;
+  while getopts l:c:m:b:d flag; do
+    case "$flag" in
+      l)
+        case "$OPTARG" in
+          1|2|3) gLayID=$OPTARG;;
+        esac
+        ;;
+      c)
+        case "$OPTARG" in
+          892) #885|887|888|889|892|898|1150
+            gCodecIDHex="0x10ec0${OPTARG}";
+            gCodecIDDec=`echo $((16#${gCodecIDHex:2}))`
+            ;;
+          *)
+            _printError "Codec not supported (manually edit source)!"
+            ;;
+        esac
+        ;;
+      b)
+        if [[ ! -z "$OPTARG" && "$OPTARG" =~ ^(.+)$ ]]; then
+          _checkPatchPatterns ${BASH_REMATCH[1]}
+        fi
+        ;;
     esac
   done
 
+  shift $(( OPTIND - 1 ));
+
   _checkHDAVersion
-  _checkLayoutId
   _getAudioCodec
 
   # If a kext already exists, ask the user if we should delete it or keep it
   if [ -d "${gInjectorKextPath}" ]; then
-    printf "\n${COLOR_RED}${gInjectorKext} already exists: ${STYLE_RESET}${COLOR_BLUE}${gInjectorKextPath}${STYLE_RESET}\nDo you want to overwrite it (y/n)? "
-    read choice
-    case "$choice" in
-      y|Y) rm -rf "${gInjectorKextPath}";;
-        *) echo "Exiting.."
-           exit;;
-    esac
+    if (( $gDebug )); then
+      rm -rf "${gInjectorKextPath}"
+    else
+      printf "\n${COLOR_RED}${gInjectorKext} already exists: ${STYLE_RESET}${COLOR_BLUE}${gInjectorKextPath}${STYLE_RESET}\nDo you want to overwrite it (y/n)? "
+      read choice
+      case "$choice" in
+        y|Y) rm -rf "${gInjectorKextPath}";;
+          *) echo "Exiting.."
+             exit;;
+      esac
+    fi
   fi
 
   printf "\n${STYLE_BOLD}Creating ${gCodec} injector kext ($gInjectorKext):${STYLE_RESET}"
@@ -416,13 +414,6 @@ EOF`\n"
   printf "\n\n${STYLE_BOLD}Installation complete!${STYLE_RESET}"
 
   if (( ! $gDebug )); then
-    #printf "\n\nReboot now (y/n)? "
-    #read choice
-    #case "$choice" in
-    #  y|Y) sudo reboot;;
-    #esac
-
-    #show restart dialog
     osascript -e 'tell app "loginwindow" to «event aevtrrst»'
   fi
 
@@ -432,7 +423,7 @@ EOF`\n"
 clear
 
 # Check if we are root
-if [ $gID -ne 0 ]; then
+if [[ $gID -ne 0 &&  $gDebug -eq 0 ]]; then
   # Re-run the script as root
   echo "This script needs to be run as root."
   sudo "${0}" "$@"

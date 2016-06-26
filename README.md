@@ -1,23 +1,24 @@
 ###Pre:
 
-**hdaInjector.sh** originally maintain by [@theracermaster](https://github.com/theracermaster) for [Gigabyte-GA-Z77X-DSDT-Patch](https://github.com/theracermaster/Gigabyte-GA-Z77X-DSDT-Patch) with [@toleda](https://github.com/toleda), [@Mirone](https://github.com/Mirone), [@Piker-Alpha](https://github.com/Piker-Alpha) etc helps.
+**hdaInjector.sh** originally maintain by [@theracermaster](https://github.com/theracermaster) for [Gigabyte-GA-Z77X-DSDT-Patch](https://github.com/theracermaster/Gigabyte-GA-Z77X-DSDT-Patch).
 
 ###Mods:
 
-This mods specifically made for ALC892 & El Capitan ATM with HD4000 HDMI audio support.
+This mods specifically made for ALC892.
 
 ###Requirements:
 
-- El Capitan (10.11)
-- Working hacks with [Clover EFI-bootloader](http://sourceforge.net/projects/cloverefiboot/)
 - Native AppleHDA installed
-- Layout-id: 3 for HDEF - HDMI audio
 
 ###Usage:
 
 ```
 #Params fully optional
-Method: hdaInjector.sh -m 1 (1: Toleda | 2: Mirone)
-Layout-id: hdaInjector.sh -l 3 (-m 1: -l: 1/2/3 | -m 2: -l: 5/7/9)
-Codec-id: hdaInjector.sh -c 892
+
+Layout-id: ./hdaInjector.sh -l 3 (-l: 1/2/3)
+Codec-id: ./hdaInjector.sh -c 892
+
+#Bin Patch: (Use '#' as multiple patch pattern separator)
+./hdaInjector.sh -b \x8b\x19\xd4\x11,\x92\x08\xec\x10#\x8a\x19\xd4\x11,\x00\x00\x00\x00
+./hdaInjector.sh -b \x8b\x19\xd4\x11,\x92\x08\xec\x10 -b \x8a\x19\xd4\x11,\x00\x00\x00\x00
 ```
