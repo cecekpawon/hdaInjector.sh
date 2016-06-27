@@ -144,21 +144,23 @@ function _downloadCodecFiles()
     curl --output $fileName --progress-bar --location $gUrlCodecTmp
   fi
 
-  gHdaClover="${gDesktopDir}/$(printf $gHdaClover $gCodecModel)"
-  gUrlCloverPatch=$(printf $gUrlCloverPatch $gCodecModel)
+  if [ ${#gAppleHDAPatchPatternArray[@]} -eq 0 ]; then
+    gHdaClover="${gDesktopDir}/$(printf $gHdaClover $gCodecModel)"
+    gUrlCloverPatch=$(printf $gUrlCloverPatch $gCodecModel)
 
-  # Download the plist containing the kext patches
-  if [ ! -e "${gHdaClover}" ]; then
-    printf "\n${STYLE_BOLD}${gCodec}${STYLE_RESET} Clover KextsToPatch:\n"
-    curl --output "${gHdaClover}" --progress-bar --location $gUrlCloverPatch
-  fi
+    # Download the plist containing the kext patches
+    if [ ! -e "${gHdaClover}" ]; then
+      printf "\n${STYLE_BOLD}${gCodec}${STYLE_RESET} Clover KextsToPatch:\n"
+      curl --output "${gHdaClover}" --progress-bar --location $gUrlCloverPatch
+    fi
 
-  if [[ $gDebug -eq 0 &&  -e "${gHdaClover}" ]]; then
-    printf "\n${STYLE_BOLD}${COLOR_GREEN}Clover KextsToPatch is ready: ${STYLE_RESET}${COLOR_BLUE}${gHdaClover}${STYLE_RESET}\nDo you want to open it (y/n)? "
-    read choice
-    case "$choice" in
-      y|Y) open -a textEdit "${gHdaClover}";;
-    esac
+    if [[ $gDebug -eq 0 &&  -e "${gHdaClover}" ]]; then
+      printf "\n${STYLE_BOLD}${COLOR_GREEN}Clover KextsToPatch is ready: ${STYLE_RESET}${COLOR_BLUE}${gHdaClover}${STYLE_RESET}\nDo you want to open it (y/n)? "
+      read choice
+      case "$choice" in
+        y|Y) open -a textEdit "${gHdaClover}";;
+      esac
+    fi
   fi
 
   # Extract the codec XML/plist files
@@ -190,11 +192,11 @@ function _createKext()
   mkdir -p "${gInjectorKextTmp}/Contents/MacOS"
   mkdir -p "${gInjectorKextTmp}/Contents/Resources"
 
-  if [ ${#gAppleHDAPatchPatternArray[@]} -ne 0 ]; then
-    doBinPatch
-  else
+  if [ ${#gAppleHDAPatchPatternArray[@]} -eq 0 ]; then
     # Create a symbolic link to AppleHDA
     ln -s "${gKextPath}/Contents/MacOS/AppleHDA" "${gInjectorKextTmp}/Contents/MacOS"
+  else
+    doBinPatch
   fi
 
   # Copy XML files to kext directory
@@ -309,7 +311,7 @@ function _checkHDAVersion()
 
 function doBinPatch()
 {
-  echo "Bin patching AppleHDA..."
+  #printf "\nBin patching AppleHDA..\n"
   sourceFile="${gKextPath}/Contents/MacOS/AppleHDA"
   targetFile="${gInjectorKextTmp}/Contents/MacOS/AppleHDA"
   cp -p "${sourceFile}" "${targetFile}"
