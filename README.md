@@ -19,6 +19,7 @@ Layout-id: ./hdaInjector.sh -l 3 (-l: 1/2/3)
 Codec-id: ./hdaInjector.sh -c 892
 
 #Bin Patch: (Use '#' as multiple patch pattern separator)
+./hdaInjector.sh -b 8B19D411,9208EC10#8319D411,00000000
 ./hdaInjector.sh -b \x8b\x19\xd4\x11,\x92\x08\xec\x10#\x8a\x19\xd4\x11,\x00\x00\x00\x00
 ./hdaInjector.sh -b \x8b\x19\xd4\x11,\x92\x08\xec\x10 -b \x8a\x19\xd4\x11,\x00\x00\x00\x00
 ```

@@ -41,6 +41,7 @@ fi
 gSystemExtensionsDir="/System/Library/Extensions"
 ## Path to AppleHDA.kext
 gKextPath="${gSystemExtensionsDir}/AppleHDA.kext"
+gSymKernelCache="/System/Library/Caches/com.apple.kext.caches/Startup/kernelcache"
 
 ## Name of the injector kext that will be created & installed
 gInjectorKext=""
@@ -295,12 +296,12 @@ function _repairPermissions()
   sudo chmod -R 755 "${gExtensionsDir}"
   sudo touch "${gExtensionsDir}"
 
-  printf "\nUpdating Caches.."
+  #printf "\nUpdating Caches.."
 
-  sudo kextcache -system-prelinked-kernel &>/dev/null
-  sudo kextcache -system-caches &>/dev/null
+  #sudo kextcache -system-prelinked-kernel
+  #sudo kextcache -system-caches
 
-  printf " done!"
+  #printf " done!"
 }
 
 function _checkHDAVersion()
@@ -330,9 +331,14 @@ function _checkPatchPatterns()
 
   for patt in "${patts[@]}"
   do
-    item=$(echo $patt | sed -e 's/x/\\x/g' -e 's/\\\\/\\/g')
-    search=$(echo $item | sed -e 's/,.*$//g')
-    replace=$(echo $item | sed -e 's/.*,//g')
+    search=$(echo $patt | sed -e 's/,.*$//g')
+    replace=$(echo $patt | sed -e 's/.*,//g')
+    if [[ "${patt}" != *",x"* ]];then
+      search=$(echo $search | sed -e 's/../\\x&/g')
+      replace=$(echo $replace | sed -e 's/../\\x&/g')
+    fi
+    search=$(echo $search | sed -e 's/x/\\x/g' -e 's/\\\\/\\/g')
+    replace=$(echo $replace | sed -e 's/x/\\x/g' -e 's/\\\\/\\/g')
     if [[ ${#search} == ${#replace} ]]; then
       gAppleHDAPatchPatternArray+=("${search}|${replace}")
     fi
@@ -347,11 +353,14 @@ function main()
 ${STYLE_BOLD}OS X hdaInjector.sh script v${gScriptVersion} by theracermaster${STYLE_RESET}
 Heavily based off Piker-Alpha's AppleHDA8Series script
 HDA Config files, XML files & kext patches by toleda, Mirone, lisai9093 & others
---------------------------------------------------------------------------------
+:
+: Mod by @cecekpawon Sept, 2015
+:
 ${STYLE_BOLD}Usage (Params fully optional):${STYLE_RESET}
 - Layout-id\t\t: ./${0##*/} -l 3 (-l: 1/2/3)
 - Codec-id\t\t: ./${0##*/} -c 892
 - Bin Patch\t\t: ./${0##*/} -b \\\\\x8b\\\\\x19\\\\\xd4\\\\\x11,\\\\\x92\\\\\x08\\\\\xec\\\\\x10
+\t\t\t\t\t\t\t\t./${0##*/} -b 8B19D411,9208EC10#8319D411,00000000
 \t\t\t\t\t\t\t\tUse '#' as multiple patch pattern separator
 --------------------------------------------------------------------------------
 EOF`\n"
